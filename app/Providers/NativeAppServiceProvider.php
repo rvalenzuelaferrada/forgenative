@@ -2,8 +2,11 @@
 
 namespace App\Providers;
 
-use Native\Desktop\Facades\Window;
+use App\Jobs\RefreshMenuBarStatus;
+use App\Services\MenuBarStatusIndicator;
 use Native\Desktop\Contracts\ProvidesPhpIni;
+use Native\Desktop\Facades\Menu;
+use Native\Desktop\Facades\MenuBar;
 
 class NativeAppServiceProvider implements ProvidesPhpIni
 {
@@ -13,11 +16,34 @@ class NativeAppServiceProvider implements ProvidesPhpIni
      */
     public function boot(): void
     {
-        Window::open();
+        $indicator = app(MenuBarStatusIndicator::class);
+        $health = $indicator->current();
+
+        MenuBar::create()
+            ->route('sites.index')
+            ->icon($indicator->iconPath($health))
+            ->label('ForgeNative')
+            ->tooltip($indicator->tooltip($health))
+            ->width(420)
+            ->height(640)
+            ->resizable(false)
+            ->backgroundColor('#09090b')
+            ->showDockIcon(false)
+            ->withContextMenu(
+                Menu::make(
+                    Menu::label('ForgeNative'),
+                    Menu::separator(),
+                    Menu::quit(),
+                ),
+            );
+
+        RefreshMenuBarStatus::dispatch();
     }
 
     /**
      * Return an array of php.ini directives to be set.
+     *
+     * @return array<string, string>
      */
     public function phpIni(): array
     {

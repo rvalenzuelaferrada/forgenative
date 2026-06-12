@@ -1,6 +1,10 @@
 <?php
 
+use App\Providers\NativeAppServiceProvider;
+
 return [
+    'running' => env('NATIVEPHP_RUNNING', false),
+
     /**
      * The version of your app.
      * It is used to determine if the app needs to be updated.
@@ -51,7 +55,7 @@ return [
      * takes care of bootstrapping your application and configuring
      * any global hotkeys, menus, windows, etc.
      */
-    'provider' => \App\Providers\NativeAppServiceProvider::class,
+    'provider' => NativeAppServiceProvider::class,
 
     /**
      * A list of environment keys that should be removed from the
