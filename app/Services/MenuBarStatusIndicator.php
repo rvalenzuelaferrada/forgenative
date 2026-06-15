@@ -38,6 +38,10 @@ class MenuBarStatusIndicator
 
     public function iconPath(DeploymentHealth $health): string
     {
+        if ($health === DeploymentHealth::Healthy) {
+            return public_path('menu-bar/status-healthyTemplate.png');
+        }
+
         return public_path("menu-bar/status-{$health->value}.png");
     }
 

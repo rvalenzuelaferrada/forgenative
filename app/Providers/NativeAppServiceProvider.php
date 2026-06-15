@@ -22,7 +22,6 @@ class NativeAppServiceProvider implements ProvidesPhpIni
         MenuBar::create()
             ->route('sites.index')
             ->icon($indicator->iconPath($health))
-            ->label('ForgeNative')
             ->tooltip($indicator->tooltip($health))
             ->width(420)
             ->height(640)

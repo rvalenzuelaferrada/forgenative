@@ -11,10 +11,12 @@ enum DeploymentHealth: string
     public static function fromForgeStatuses(
         ?string $deploymentStatus,
         ?string $siteStatus = null,
+        ?string $latestDeploymentStatus = null,
     ): self {
         $statuses = array_filter([
             strtolower((string) $deploymentStatus),
             strtolower((string) $siteStatus),
+            strtolower((string) $latestDeploymentStatus),
         ]);
 
         if (array_intersect($statuses, ['failed', 'failed-build'])) {

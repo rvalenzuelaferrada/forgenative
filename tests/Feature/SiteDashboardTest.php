@@ -35,6 +35,7 @@ test('the sites dashboard exposes only contextual forge data', function () {
                     'url' => 'https://example.com',
                     'status' => 'installed',
                     'deployment_status' => null,
+                    'deployment_health' => 'failed',
                     'php_version' => '8.4',
                     'organization_slug' => 'acme',
                 ],
@@ -60,6 +61,7 @@ test('the sites dashboard exposes only contextual forge data', function () {
             ->where('overview.active_connection_id', $credential->id)
             ->where('overview.active_organization_slug', 'acme')
             ->where('overview.sites.0.name', 'example.com')
+            ->where('overview.sites.0.deployment_health', 'failed')
             ->missing('connections.0.encrypted_token')
             ->missing('connections.0.token_fingerprint'));
 });

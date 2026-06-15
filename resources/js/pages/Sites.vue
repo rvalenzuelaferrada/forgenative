@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Form, Head, Link, router } from '@inertiajs/vue3';
+import { Form, Head, Link, router, usePoll } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
 import DeploymentStatusController from '@/actions/App/Http/Controllers/DeploymentStatusController';
@@ -24,6 +24,7 @@ type Site = {
     url: string | null;
     status: string | null;
     deployment_status: string | null;
+    deployment_health: 'healthy' | 'deploying' | 'failed';
     php_version: string | null;
     organization_slug: string | null;
 };
@@ -67,6 +68,24 @@ const props = defineProps<{
     connections: Connection[];
     overview: Overview;
 }>();
+
+usePoll(
+    60_000,
+    {
+        only: ['overview'],
+        preserveScroll: true,
+    },
+    {
+        keepAlive: true,
+        mode: 'rest',
+    },
+);
+
+const deploymentHealthClasses = {
+    healthy: 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.55)]',
+    deploying: 'bg-[#DDA900] shadow-[0_0_8px_rgba(221,169,0,0.55)]',
+    failed: 'bg-[#DD0000] shadow-[0_0_8px_rgba(221,0,0,0.55)]',
+} satisfies Record<Site['deployment_health'], string>;
 
 const activeConnection = computed(
     () =>
@@ -123,22 +142,26 @@ const switchOrganization = (event: Event) => {
 <template>
     <Head :title="copy.title" />
 
-    <main class="min-h-screen bg-zinc-950 text-zinc-100">
+    <main
+        class="min-h-screen bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100"
+    >
         <header
-            class="sticky top-0 z-10 border-b border-zinc-800 bg-zinc-950/95 px-4 pt-4 pb-3 backdrop-blur"
+            class="sticky top-0 z-10 border-b border-zinc-200 bg-zinc-50/95 px-4 pt-4 pb-3 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95"
         >
             <div class="flex items-center justify-between gap-3">
                 <div class="flex min-w-0 items-center gap-2.5">
-                    <span
-                        class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-emerald-400 text-xs font-black text-zinc-950"
-                    >
-                        FN
-                    </span>
+                    <img
+                        src="/icon-source.png"
+                        alt="ForgeNative"
+                        class="h-8 w-10 shrink-0 object-contain"
+                    />
                     <div class="min-w-0">
                         <p class="truncate text-sm font-semibold">
                             ForgeNative
                         </p>
-                        <p class="truncate text-[11px] text-zinc-500">
+                        <p
+                            class="truncate text-[11px] text-zinc-500 dark:text-zinc-500"
+                        >
                             {{ copy.tagline }}
                         </p>
                     </div>
@@ -152,7 +175,7 @@ const switchOrganization = (event: Event) => {
                             },
                         })
                     "
-                    class="rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-[11px] font-medium text-zinc-300 transition hover:border-zinc-700 hover:text-white"
+                    class="rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-[11px] font-medium text-zinc-700 transition hover:border-zinc-400 hover:text-zinc-950 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-700 dark:hover:text-white"
                 >
                     {{ copy.switch_connection }}
                 </Link>
@@ -168,7 +191,7 @@ const switchOrganization = (event: Event) => {
                     </span>
                     <select
                         :value="overview.active_connection_id"
-                        class="h-9 min-w-0 rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 text-xs text-zinc-200 outline-none focus:border-emerald-400"
+                        class="h-9 min-w-0 rounded-lg border border-zinc-300 bg-white px-2.5 text-xs text-zinc-800 outline-none focus:border-emerald-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:focus:border-emerald-400"
                         @change="switchConnection"
                     >
                         <option
@@ -183,12 +206,14 @@ const switchOrganization = (event: Event) => {
 
                 <div
                     v-else
-                    class="flex items-center justify-between gap-3 rounded-lg bg-zinc-900/70 px-3 py-2"
+                    class="flex items-center justify-between gap-3 rounded-lg bg-zinc-100 px-3 py-2 dark:bg-zinc-900/70"
                 >
                     <span class="text-[11px] text-zinc-500">
                         {{ copy.connection }}
                     </span>
-                    <span class="truncate text-xs font-medium text-zinc-200">
+                    <span
+                        class="truncate text-xs font-medium text-zinc-800 dark:text-zinc-200"
+                    >
                         {{ activeConnection?.name }}
                     </span>
                 </div>
@@ -202,7 +227,7 @@ const switchOrganization = (event: Event) => {
                     </span>
                     <select
                         :value="overview.active_organization_slug ?? ''"
-                        class="h-9 min-w-0 rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 text-xs text-zinc-200 outline-none focus:border-emerald-400"
+                        class="h-9 min-w-0 rounded-lg border border-zinc-300 bg-white px-2.5 text-xs text-zinc-800 outline-none focus:border-emerald-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:focus:border-emerald-400"
                         @change="switchOrganization"
                     >
                         <option
@@ -217,12 +242,14 @@ const switchOrganization = (event: Event) => {
 
                 <div
                     v-else-if="activeOrganization"
-                    class="flex items-center justify-between gap-3 rounded-lg bg-zinc-900/70 px-3 py-2"
+                    class="flex items-center justify-between gap-3 rounded-lg bg-zinc-100 px-3 py-2 dark:bg-zinc-900/70"
                 >
                     <span class="text-[11px] text-zinc-500">
                         {{ copy.organization }}
                     </span>
-                    <span class="truncate text-xs font-medium text-zinc-200">
+                    <span
+                        class="truncate text-xs font-medium text-zinc-800 dark:text-zinc-200"
+                    >
                         {{ activeOrganization.name }}
                     </span>
                 </div>
@@ -233,7 +260,7 @@ const switchOrganization = (event: Event) => {
             <div class="mb-3 flex items-center justify-between">
                 <div class="flex items-center gap-2">
                     <span
-                        class="flex size-7 items-center justify-center rounded-lg bg-emerald-400/10 text-emerald-300"
+                        class="flex size-7 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300"
                     >
                         <svg
                             class="size-4"
@@ -263,7 +290,7 @@ const switchOrganization = (event: Event) => {
                         <button
                             type="submit"
                             :disabled="processing"
-                            class="rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1 text-[10px] font-medium text-zinc-400 transition hover:border-zinc-700 hover:text-zinc-200 disabled:cursor-wait disabled:opacity-60"
+                            class="rounded-md border border-zinc-300 bg-white px-2 py-1 text-[10px] font-medium text-zinc-600 transition hover:border-zinc-400 hover:text-zinc-900 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-zinc-700 dark:hover:text-zinc-200"
                         >
                             {{
                                 processing ? copy.refreshing : copy.refresh_now
@@ -278,14 +305,14 @@ const switchOrganization = (event: Event) => {
                     !overview.capabilities.organizations &&
                     overview.capabilities.sites
                 "
-                class="mb-3 rounded-xl border border-amber-400/15 bg-amber-400/5 px-3 py-2 text-[11px] leading-4 text-amber-200/80"
+                class="mb-3 rounded-xl border border-amber-500/25 bg-amber-50 px-3 py-2 text-[11px] leading-4 text-amber-800 dark:border-amber-400/15 dark:bg-amber-400/5 dark:text-amber-200/80"
             >
                 {{ copy.organizations_hidden }}
             </div>
 
             <div
                 v-if="overview.error"
-                class="rounded-2xl border border-red-400/15 bg-red-400/5 p-4 text-sm leading-5 text-red-200"
+                class="rounded-2xl border border-red-500/20 bg-red-50 p-4 text-sm leading-5 text-red-700 dark:border-red-400/15 dark:bg-red-400/5 dark:text-red-200"
             >
                 {{
                     overview.error === 'sites_forbidden'
@@ -296,9 +323,9 @@ const switchOrganization = (event: Event) => {
 
             <div
                 v-else-if="overview.sites.length === 0"
-                class="flex min-h-52 flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-800 px-8 text-center"
+                class="flex min-h-52 flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-300 px-8 text-center dark:border-zinc-800"
             >
-                <p class="text-sm font-medium text-zinc-300">
+                <p class="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     {{ copy.no_sites }}
                 </p>
                 <p class="mt-1 text-xs leading-5 text-zinc-500">
@@ -310,15 +337,18 @@ const switchOrganization = (event: Event) => {
                 <article
                     v-for="site in overview.sites"
                     :key="site.id"
-                    class="group rounded-xl border border-zinc-800 bg-zinc-900/65 p-3 transition hover:border-zinc-700 hover:bg-zinc-900"
+                    class="group rounded-xl border border-zinc-200 bg-white p-3 shadow-sm transition hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900/65 dark:shadow-none dark:hover:border-zinc-700 dark:hover:bg-zinc-900"
                 >
                     <div class="flex items-start gap-3">
                         <span
-                            class="mt-1 size-2 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.55)]"
+                            class="mt-1 size-2 shrink-0 rounded-full"
+                            :class="
+                                deploymentHealthClasses[site.deployment_health]
+                            "
                         />
                         <div class="min-w-0 flex-1">
                             <p
-                                class="truncate text-sm font-medium text-zinc-200"
+                                class="truncate text-sm font-medium text-zinc-800 dark:text-zinc-200"
                             >
                                 {{ site.name }}
                             </p>
@@ -330,7 +360,7 @@ const switchOrganization = (event: Event) => {
                             </p>
                         </div>
                         <span
-                            class="rounded-md bg-zinc-800 px-2 py-1 text-[10px] text-zinc-400"
+                            class="rounded-md bg-zinc-100 px-2 py-1 text-[10px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
                         >
                             {{
                                 site.php_version

@@ -11,6 +11,9 @@ use App\Services\MenuBarStatusIndicator;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Forge\CursorPaginator;
 use Laravel\Forge\Forge;
+use Laravel\Forge\Resources\Deployment;
+use Laravel\Forge\Resources\Organization;
+use Laravel\Forge\Resources\Server;
 use Laravel\Forge\Resources\Site;
 
 beforeEach(function () {
@@ -76,16 +79,43 @@ test('the status indicator stores the latest known state', function () {
         ->toBe('deploying');
 });
 
+test('only the healthy menu bar icon uses a macOS template image', function () {
+    $indicator = app(MenuBarStatusIndicator::class);
+
+    expect($indicator->iconPath(DeploymentHealth::Healthy))
+        ->toEndWith('menu-bar/status-healthyTemplate.png')
+        ->and($indicator->iconPath(DeploymentHealth::Deploying))
+        ->toEndWith('menu-bar/status-deploying.png')
+        ->and($indicator->iconPath(DeploymentHealth::Failed))
+        ->toEndWith('menu-bar/status-failed.png');
+});
+
 test('a failed deployment takes priority over an active deployment', function () {
-    ForgeCredential::factory()->count(2)->create();
+    ForgeCredential::factory()->create();
 
     $vault = Mockery::mock(ForgeTokenVault::class);
     $vault->shouldReceive('decrypt')
-        ->twice()
-        ->andReturn('first-token', 'second-token');
+        ->once()
+        ->andReturn('token');
 
-    $deployingPage = Mockery::mock(CursorPaginator::class);
-    $deployingPage->shouldReceive('items')
+    $organizationPage = Mockery::mock(CursorPaginator::class);
+    $organizationPage->shouldReceive('items')
+        ->once()
+        ->andReturn([
+            new Organization([
+                'slug' => 'example',
+            ]),
+        ]);
+    $serverPage = Mockery::mock(CursorPaginator::class);
+    $serverPage->shouldReceive('items')
+        ->once()
+        ->andReturn([
+            new Server([
+                'id' => 10,
+            ]),
+        ]);
+    $sitePage = Mockery::mock(CursorPaginator::class);
+    $sitePage->shouldReceive('items')
         ->once()
         ->andReturn([
             new Site([
@@ -93,38 +123,60 @@ test('a failed deployment takes priority over an active deployment', function ()
                 'name' => 'deploying.example.com',
                 'deployment_status' => 'deploying',
             ]),
-        ]);
-    $deployingPage->shouldReceive('hasMorePages')
-        ->once()
-        ->andReturnFalse();
-
-    $failedPage = Mockery::mock(CursorPaginator::class);
-    $failedPage->shouldReceive('items')
-        ->once()
-        ->andReturn([
             new Site([
                 'id' => 2,
                 'name' => 'failed.example.com',
-                'deployment_status' => 'failed',
+                'deployment_status' => null,
+                'status' => 'installed',
             ]),
         ]);
 
-    $deployingForge = Mockery::mock(Forge::class);
-    $deployingForge->shouldReceive('sites')
+    $deployingDeploymentPage = Mockery::mock(CursorPaginator::class);
+    $deployingDeploymentPage->shouldReceive('items')
         ->once()
-        ->with(['page' => ['size' => 100]])
-        ->andReturn($deployingPage);
+        ->andReturn([
+            new Deployment(['status' => 'deploying']),
+        ]);
 
-    $failedForge = Mockery::mock(Forge::class);
-    $failedForge->shouldReceive('sites')
+    $failedDeploymentPage = Mockery::mock(CursorPaginator::class);
+    $failedDeploymentPage->shouldReceive('items')
+        ->once()
+        ->andReturn([
+            new Deployment(['status' => 'failed']),
+        ]);
+
+    $forge = Mockery::mock(Forge::class);
+    $forge->shouldReceive('organizations')
         ->once()
         ->with(['page' => ['size' => 100]])
-        ->andReturn($failedPage);
+        ->andReturn($organizationPage);
+    $forge->shouldReceive('servers')
+        ->once()
+        ->with('example', ['page' => ['size' => 100]])
+        ->andReturn($serverPage);
+    $forge->shouldReceive('serverSites')
+        ->once()
+        ->with('example', 10, ['page' => ['size' => 100]])
+        ->andReturn($sitePage);
+    $forge->shouldReceive('deployments')
+        ->once()
+        ->with('example', 10, 1, [
+            'page' => ['size' => 1],
+            'sort' => '-created_at',
+        ])
+        ->andReturn($deployingDeploymentPage);
+    $forge->shouldReceive('deployments')
+        ->once()
+        ->with('example', 10, 2, [
+            'page' => ['size' => 1],
+            'sort' => '-created_at',
+        ])
+        ->andReturn($failedDeploymentPage);
 
     $clients = Mockery::mock(ForgeClientFactory::class);
     $clients->shouldReceive('make')
-        ->twice()
-        ->andReturn($deployingForge, $failedForge);
+        ->once()
+        ->andReturn($forge);
 
     $monitor = new ForgeDeploymentMonitor($clients, $vault);
 

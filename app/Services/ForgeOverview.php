@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\DeploymentHealth;
 use App\Models\ForgeCredential;
+use Laravel\Forge\CursorPaginator;
 use Laravel\Forge\Exceptions\ForbiddenException;
 use Laravel\Forge\Forge;
 use Laravel\Forge\Resources\Organization;
@@ -81,7 +83,10 @@ class ForgeOverview
             'active_organization_slug' => $activeOrganizationSlug,
             'organizations' => $organizations,
             'sites' => array_map(
-                fn (Site $site): array => $this->siteData($site),
+                fn (array $site): array => $this->siteData(
+                    $site['site'],
+                    $site['latest_deployment_status'],
+                ),
                 $sites['items'],
             ),
             'capabilities' => [
@@ -126,36 +131,106 @@ class ForgeOverview
     }
 
     /**
-     * @return array{items: array<int, Site>, has_more: bool}
+     * @return array{
+     *     items: array<int, array{site: Site, latest_deployment_status: ?string}>,
+     *     has_more: bool
+     * }
      */
     private function loadSites(Forge $forge, ?string $organizationSlug): array
     {
-        $sites = $organizationSlug === null
-            ? $forge->sites(['page' => ['size' => 100]])
-            : $forge->organizationSites($organizationSlug, ['page' => ['size' => 100]]);
+        if ($organizationSlug === null) {
+            $sites = $forge->sites(['page' => ['size' => 100]]);
 
-        return [
-            'items' => $sites->items(),
-            'has_more' => $sites->hasMorePages(),
-        ];
+            return [
+                'items' => array_map(
+                    fn (Site $site): array => [
+                        'site' => $site,
+                        'latest_deployment_status' => null,
+                    ],
+                    $sites->items(),
+                ),
+                'has_more' => $sites->hasMorePages(),
+            ];
+        }
+
+        $items = [];
+        $serverPage = $forge->servers(
+            $organizationSlug,
+            ['page' => ['size' => 100]],
+        );
+
+        while ($serverPage !== null) {
+            foreach ($serverPage->items() as $server) {
+                if ($server->id === null) {
+                    continue;
+                }
+
+                $sitePage = $forge->serverSites(
+                    $organizationSlug,
+                    $server->id,
+                    ['page' => ['size' => 100]],
+                );
+
+                while ($sitePage !== null) {
+                    foreach ($sitePage->items() as $site) {
+                        if ($site->id === null) {
+                            continue;
+                        }
+
+                        $latestDeployment = $forge->deployments(
+                            $organizationSlug,
+                            $server->id,
+                            $site->id,
+                            [
+                                'page' => ['size' => 1],
+                                'sort' => '-created_at',
+                            ],
+                        )->items()[0] ?? null;
+
+                        $items[] = [
+                            'site' => $site,
+                            'latest_deployment_status' => $latestDeployment?->status,
+                        ];
+                    }
+
+                    $sitePage = $this->nextPage($sitePage);
+                }
+            }
+
+            $serverPage = $this->nextPage($serverPage);
+        }
+
+        return ['items' => $items, 'has_more' => false];
     }
 
     /**
      * @return array<string, int|string|null>
      */
-    private function siteData(Site $site): array
-    {
+    private function siteData(
+        Site $site,
+        ?string $latestDeploymentStatus,
+    ): array {
         return [
             'id' => (int) $site->id,
             'name' => (string) ($site->name ?? 'Unnamed site'),
             'url' => $site->url,
             'status' => $site->status,
             'deployment_status' => $site->deploymentStatus,
+            'deployment_health' => DeploymentHealth::fromForgeStatuses(
+                $site->deploymentStatus,
+                $site->status,
+                $latestDeploymentStatus,
+            )->value,
             'php_version' => $site->phpVersion,
             'organization_slug' => isset($site->organizationSlug)
                 ? $site->organizationSlug
                 : null,
         ];
+    }
+
+    private function nextPage(CursorPaginator $page): ?CursorPaginator
+    {
+        return $page->hasMorePages() ? $page->nextPage() : null;
     }
 
     /**

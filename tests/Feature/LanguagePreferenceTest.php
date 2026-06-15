@@ -30,6 +30,8 @@ test('english can be selected and is used by the interface', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->component('Welcome')
             ->where('copy.heading', 'Connect your Laravel Forge account')
+            ->where('copy.name_placeholder', 'Production')
+            ->where('copy.name_help', 'Use a descriptive name such as Personal, Work, Production, or the client name.')
             ->where('copy.submit', 'Add connection'));
 });
 
@@ -45,6 +47,8 @@ test('spanish can be selected and is used by the interface', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->component('Welcome')
             ->where('copy.heading', 'Conecta tu cuenta de Laravel Forge')
+            ->where('copy.name_placeholder', 'Producción')
+            ->where('copy.name_help', 'Usa un nombre descriptivo como Personal, Trabajo, Producción o el nombre del cliente.')
             ->where('copy.submit', 'Agregar conexión'));
 });
 
