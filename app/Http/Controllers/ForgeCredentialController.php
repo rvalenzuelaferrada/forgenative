@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Laravel\Forge\Exceptions\ForbiddenException;
 use Throwable;
 
 class ForgeCredentialController extends Controller
@@ -55,6 +56,10 @@ class ForgeCredentialController extends Controller
 
         try {
             $forgeUser = $validator->validate($validated['token']);
+        } catch (ForbiddenException) {
+            throw ValidationException::withMessages([
+                'token' => trans('forge.validation.token_missing_user_scope'),
+            ]);
         } catch (Throwable) {
             throw ValidationException::withMessages([
                 'token' => trans('forge.validation.token_invalid'),

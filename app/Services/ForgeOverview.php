@@ -177,19 +177,14 @@ class ForgeOverview
                             continue;
                         }
 
-                        $latestDeployment = $forge->deployments(
-                            $organizationSlug,
-                            $server->id,
-                            $site->id,
-                            [
-                                'page' => ['size' => 1],
-                                'sort' => '-created_at',
-                            ],
-                        )->items()[0] ?? null;
-
                         $items[] = [
                             'site' => $site,
-                            'latest_deployment_status' => $latestDeployment?->status,
+                            'latest_deployment_status' => $this->latestDeploymentStatus(
+                                $forge,
+                                $organizationSlug,
+                                $server->id,
+                                $site->id,
+                            ),
                         ];
                     }
 
@@ -201,6 +196,33 @@ class ForgeOverview
         }
 
         return ['items' => $items, 'has_more' => false];
+    }
+
+    /**
+     * Resolve the latest deployment status for a site, degrading to null when
+     * the token cannot read deployments so the site still renders.
+     */
+    private function latestDeploymentStatus(
+        Forge $forge,
+        string $organizationSlug,
+        int $serverId,
+        int $siteId,
+    ): ?string {
+        try {
+            $latestDeployment = $forge->deployments(
+                $organizationSlug,
+                $serverId,
+                $siteId,
+                [
+                    'page' => ['size' => 1],
+                    'sort' => '-created_at',
+                ],
+            )->items()[0] ?? null;
+        } catch (Throwable) {
+            return null;
+        }
+
+        return $latestDeployment?->status;
     }
 
     /**

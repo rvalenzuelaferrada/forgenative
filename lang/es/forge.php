@@ -62,6 +62,7 @@ return [
         'token_max' => 'El token de Forge supera el límite admitido.',
         'token_duplicate' => 'Este token ya está registrado.',
         'token_invalid' => 'No pudimos validar este token con Laravel Forge.',
+        'token_missing_user_scope' => 'Este token es válido pero le falta el scope «User: View», necesario para verificar la cuenta. Agrégalo en Forge o crea un token nuevo.',
         'token_storage_failed' => 'No pudimos proteger el token con el almacenamiento seguro del sistema.',
     ],
     'status' => [

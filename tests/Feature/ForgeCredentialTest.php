@@ -6,6 +6,7 @@ use App\Services\ForgeTokenVault;
 use App\Services\LocalePreference;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
+use Laravel\Forge\Exceptions\ForbiddenException;
 
 beforeEach(function () {
     Storage::fake('local');
@@ -142,6 +143,27 @@ test('an invalid forge token is rejected and never flashed to the session', func
         ->assertRedirect(route('forge-credentials.index'))
         ->assertSessionHasErrors('token')
         ->assertSessionMissing('_old_input.token');
+
+    expect(ForgeCredential::query()->exists())->toBeFalse();
+});
+
+test('a token missing the user scope reports the missing scope instead of being rejected as invalid', function () {
+    $validator = Mockery::mock(ForgeTokenValidator::class);
+    $validator->shouldReceive('validate')
+        ->once()
+        ->andThrow(new ForbiddenException('Forbidden'));
+
+    app()->instance(ForgeTokenValidator::class, $validator);
+
+    $this->from(route('forge-credentials.index'))
+        ->post(route('forge-credentials.store'), [
+            'name' => 'scoped@example.com',
+            'token' => 'forge-token-missing-user-scope-length',
+        ])
+        ->assertRedirect(route('forge-credentials.index'))
+        ->assertSessionHasErrors([
+            'token' => trans('forge.validation.token_missing_user_scope'),
+        ]);
 
     expect(ForgeCredential::query()->exists())->toBeFalse();
 });

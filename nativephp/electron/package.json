@@ -1,6 +1,6 @@
 {
-    "name": "laravel-dev",
-    "version": "1.0.0",
+    "name": "forgenative-dev",
+    "version": "1.0.1",
     "description": "An awesome app built with NativePHP",
     "main": "./out/main/index.js",
     "author": null,
